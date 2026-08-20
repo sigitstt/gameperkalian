@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Perkalian</title>
+    <style>
+        * { box-sizing: border-box; font-family: 'Poppins', sans-serif; margin: 0; padding: 0; }
+        body { background-color: #f0f4f8; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+        .container { background: #fff; width: 100%; max-width: 420px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); padding: 20px; overflow: hidden; position: relative; }
+        
+        .title { text-align: center; color: #2c3e50; margin-bottom: 20px; cursor: pointer; user-select: none; font-size: 24px; font-weight: bold; }
+        
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; color: #34495e; font-weight: 600; font-size: 14px; }
+        input, select { width: 100%; padding: 12px; border: 2px solid #cbd5e1; border-radius: 10px; font-size: 15px; outline: none; }
+        input:focus, select:focus { border-color: #3b82f6; }
+        .btn-start { width: 100%; padding: 14px; background: #2563eb; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; transition: 0.2s; }
+        .btn-start:disabled { background: #94a3b8; cursor: not-allowed; }
+        
+        .game-header { display: flex; justify-content: space-between; align-items: center; background: #e2e8f0; padding: 10px 15px; border-radius: 12px; margin-bottom: 15px; font-size: 14px; font-weight: bold; color: #1e293b; }
+        .hearts { color: #ef4444; font-size: 16px; letter-spacing: 2px; }
+        
+        .question-box { background: #3b82f6; color: white; border-radius: 15px; text-align: center; padding: 20px; font-size: 32px; font-weight: bold; margin-bottom: 15px; box-shadow: inset 0 -4px 0 rgba(0,0,0,0.2); }
+        .answer-box { background: #f8fafc; border: 2px dashed #94a3b8; border-radius: 12px; text-align: center; padding: 12px; font-size: 28px; font-weight: bold; color: #0f172a; min-height: 58px; margin-bottom: 15px; letter-spacing: 2px; }
+        
+        .numpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .btn-num, .btn-action { padding: 16px; font-size: 20px; font-weight: bold; border: none; border-radius: 12px; cursor: pointer; transition: active 0.1s; box-shadow: 0 4px 0 rgba(0,0,0,0.1); }
+        .btn-num { background: #f1f5f9; color: #1e293b; }
+        .btn-num:active { transform: translateY(2px); box-shadow: 0 2px 0 rgba(0,0,0,0.1); }
+        .btn-clear { background: #f87171; color: white; grid-column: span 1; }
+        .btn-submit { background: #22c55e; color: white; grid-column: span 2; }
+        
+        .modal-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; visibility: hidden; opacity: 0; transition: 0.2s; z-index: 99; }
+        .modal-overlay.active { visibility: visible; opacity: 1; }
+        .modal-card { background: white; width: 90%; border-radius: 15px; padding: 20px; text-align: center; box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
+        .modal-card h3 { margin-bottom: 10px; color: #1e293b; }
+        .modal-card p { margin-bottom: 15px; color: #475569; font-size: 14px; white-space: pre-line; }
+        .modal-card button { width: 100%; padding: 10px; background: #2563eb; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="screen-auth">
+        <h2 class="title" id="game-title">Game Perkalian</h2>
+        <div class="form-group">
+            <label>No. Absen</label>
+            <select id="input-absen"></select>
+        </div>
+        <div class="form-group">
+            <label>Nama Lengkap</label>
+            <input type="text" id="input-nama" placeholder="Masukkan nama lengkap">
+        </div>
+        <div class="form-group">
+            <label>Kelas</label>
+            <select id="input-kelas"></select>
+        </div>
+        <div class="form-group">
+            <label>Jenis Tes</label>
+            <select id="input-jenis" onchange="toggleTokenField()">
+                <option value="Formatif">Formatif</option>
+                <option value="Sumatif">Sumatif</option>
+            </select>
+        </div>
+        <div class="form-group" id="group-token" style="display:none;">
+            <label>Token Sumatif</label>
+            <input type="password" id="input-token" placeholder="Masukkan token">
+        </div>
+        <button class="btn-start" id="btn-start-game" onclick="validateAndStart()">Mulai Bermain</button>
+    </div>
+
+    <div id="screen-game" style="display: none;">
+        <div class="game-header">
+            <div>Waktu: <span id="disp-time">0</span>s</div>
+            <div>Nyawa: <span id="disp-hearts" class="hearts"></span></div>
+            <div>Skor: <span id="disp-score">0</span> / 100</div>
+        </div>
+
+        <div class="question-box" id="disp-question">0 x 0</div>
+        <div class="answer-box" id="disp-answer"></div>
+
+        <div class="numpad">
+            <button class="btn-num" onclick="pressNum('1')">1</button>
+            <button class="btn-num" onclick="pressNum('2')">2</button>
+            <button class="btn-num" onclick="pressNum('3')">3</button>
+            <button class="btn-num" onclick="pressNum('4')">4</button>
+            <button class="btn-num" onclick="pressNum('5')">5</button>
+            <button class="btn-num" onclick="pressNum('6')">6</button>
+            <button class="btn-num" onclick="pressNum('7')">7</button>
+            <button class="btn-num" onclick="pressNum('8')">8</button>
+            <button class="btn-num" onclick="pressNum('9')">9</button>
+            <button class="btn-num" onclick="pressNum('0')">0</button>
+            <button class="btn-action btn-clear" onclick="pressClear()">Gosok</button>
+            <button class="btn-action btn-submit" onclick="pressSubmit()">Kirim</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="custom-modal">
+        <div class="modal-card">
+            <h3 id="modal-title">Informasi</h3>
+            <p id="modal-body">Pesan sistem...</p>
+            <button id="modal-btn" onclick="closeModal()">Tutup</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="admin-modal">
+        <div class="modal-card" style="text-align: left;">
+            <h3 style="text-align: center; margin-bottom:15px;">Pengaturan Guru</h3>
+            <div class="form-group"><label>Jumlah Nyawa (Cell D2)</label><input type="number" id="cfg-lives" value="3"></div>
+            <div class="form-group"><label>Jumlah Soal (Cell D3)</label><input type="number" id="cfg-questions" value="10"></div>
+            <div class="form-group"><label>Waktu/Detik (Cell D4)</label><input type="number" id="cfg-time" value="60"></div>
+            <div class="form-group"><label>Token Sumatif (Cell D5)</label><input type="text" id="cfg-token" value="1234"></div>
+            <button onclick="saveSettings()">Simpan Pengaturan</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // =========================================================================
+    // TEMPELKAN URL GOOGLE APPS SCRIPT ANDA DI SINI
+    // =========================================================================
+    const WEB_APP_URL = "ISI_URL_APPS_SCRIPT_ANDA_DI_SINI";
+    // =========================================================================
+
+    let config = {
+        lives: parseInt(localStorage.getItem('cfg_lives')) || 3,
+        totalQuestions: parseInt(localStorage.getItem('cfg_questions')) || 10,
+        timeLimit: parseInt(localStorage.getItem('cfg_time')) || 60,
+        token: localStorage.getItem('cfg_token') || '1234'
+    };
+
+    let studentData = {};
+    let questions = [];
+    let preloadedQuestions = null;
+    let currentQIndex = 0;
+    let currentLives = 0;
+    let correctAnswersCount = 0;
+    let score = 0;
+    let timeLeft = 0;
+    let timerInterval = null;
+    let titleTaps = [];
+    let audioCtx = null;
+
+    function getAudioContext() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+        return audioCtx;
+    }
+
+    const playAudio = (type) => {
+        try {
+            const ctx = getAudioContext();
+            const now = ctx.currentTime;
+            const VOLUME = 0.8;
+
+            if (type === 'click') {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.exponentialRampToValueAtTime(200, now + 0.05);
+                gain.gain.setValueAtTime(VOLUME, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.05);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.05);
+            } 
+            else if (type === 'correct') {
+                const osc1 = ctx.createOscillator();
+                const osc2 = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc1.type = 'sine';
+                osc2.type = 'sine';
+                osc1.frequency.setValueAtTime(1046.50, now);
+                osc2.frequency.setValueAtTime(1567.98, now + 0.08);
+                gain.gain.setValueAtTime(VOLUME, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc1.connect(gain);
+                osc2.connect(gain);
+                gain.connect(ctx.destination);
+                osc1.start(now);
+                osc1.stop(now + 0.1);
+                osc2.start(now + 0.08);
+                osc2.stop(now + 0.3);
+            } 
+            else if (type === 'wrong') {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(160, now);
+                osc.frequency.setValueAtTime(110, now + 0.12);
+                gain.gain.setValueAtTime(VOLUME, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.35);
+            } 
+            else if (type === 'win') {
+                const notes = [523.25, 659.25, 783.99, 1046.50, 1318.51];
+                notes.forEach((freq, i) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now + i * 0.09);
+                    gain.gain.setValueAtTime(VOLUME, now + i * 0.09);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.09 + 0.2);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now + i * 0.09);
+                    osc.stop(now + i * 0.09 + 0.2);
+                });
+            } 
+            else if (type === 'gameover') {
+                const notes = [400, 320, 250, 150];
+                notes.forEach((freq, i) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(freq, now + i * 0.14);
+                    gain.gain.setValueAtTime(VOLUME, now + i * 0.14);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.14 + 0.22);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now + i * 0.14);
+                    osc.stop(now + i * 0.14 + 0.22);
+                });
+            }
+        } catch (e) { console.log('Audio error', e); }
+    };
+
+    window.onload = () => {
+        const selectAbsen = document.getElementById('input-absen');
+        for (let i = 1; i <= 40; i++) {
+            let opt = document.createElement('option');
+            opt.value = i; opt.textContent = i;
+            selectAbsen.appendChild(opt);
+        }
+
+        const selectKelas = document.getElementById('input-kelas');
+        const listKelas = ['Umum'];
+        ['7', '8', '9'].forEach(l => {
+            for (let c = 65; c <= 73; c++) listKelas.push(l + String.fromCharCode(c));
+        });
+        listKelas.forEach(k => {
+            let opt = document.createElement('option');
+            opt.value = k; opt.textContent = k;
+            selectKelas.appendChild(opt);
+        });
+
+        preloadDataInBg();
+    };
+
+    async function preloadDataInBg() {
+        if (!WEB_APP_URL || WEB_APP_URL === "ISI_URL_APPS_SCRIPT_ANDA_DI_SINI") return;
+        try {
+            const [setRes, qRes] = await Promise.all([
+                fetch(WEB_APP_URL + '?action=getSettings').then(r => r.json()).catch(() => null),
+                fetch(WEB_APP_URL + '?action=getQuestions').then(r => r.json()).catch(() => null)
+            ]);
+
+            if (setRes) {
+                if (setRes.lives) config.lives = parseInt(setRes.lives);
+                if (setRes.questions) config.totalQuestions = parseInt(setRes.questions);
+                if (setRes.time) config.timeLimit = parseInt(setRes.time);
+                if (setRes.token) config.token = String(setRes.token);
+            }
+            if (qRes && qRes.length > 0) {
+                preloadedQuestions = qRes;
+            }
+        } catch(e) {}
+    }
+
+    document.getElementById('game-title').addEventListener('click', () => {
+        getAudioContext();
+        const now = Date.now();
+        titleTaps.push(now);
+        titleTaps = titleTaps.filter(t => now - t <= 1500);
+        if (titleTaps.length >= 5) {
+            titleTaps = [];
+            document.getElementById('cfg-lives').value = config.lives;
+            document.getElementById('cfg-questions').value = config.totalQuestions;
+            document.getElementById('cfg-time').value = config.timeLimit;
+            document.getElementById('cfg-token').value = config.token;
+            document.getElementById('admin-modal').classList.add('active');
+        }
+    });
+
+    function saveSettings() {
+        config.lives = parseInt(document.getElementById('cfg-lives').value) || 3;
+        config.totalQuestions = parseInt(document.getElementById('cfg-questions').value) || 10;
+        config.timeLimit = parseInt(document.getElementById('cfg-time').value) || 60;
+        config.token = document.getElementById('cfg-token').value;
+
+        localStorage.setItem('cfg_lives', config.lives);
+        localStorage.setItem('cfg_questions', config.totalQuestions);
+        localStorage.setItem('cfg_time', config.timeLimit);
+        localStorage.setItem('cfg_token', config.token);
+
+        document.getElementById('admin-modal').classList.remove('active');
+        
+        if (WEB_APP_URL && WEB_APP_URL !== "ISI_URL_APPS_SCRIPT_ANDA_DI_SINI") {
+            fetch(WEB_APP_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify({ action: 'saveSettings', data: config })
+            });
+        }
+        showCustomModal('Sistem', 'Pengaturan berhasil disimpan!');
+    }
+
+    function toggleTokenField() {
+        const jenis = document.getElementById('input-jenis').value;
+        document.getElementById('group-token').style.display = (jenis === 'Sumatif') ? 'block' : 'none';
+    }
+
+    function showCustomModal(title, message, callback = null) {
+        document.getElementById('modal-title').textContent = title;
+        document.getElementById('modal-body').textContent = message;
+        document.getElementById('custom-modal').classList.add('active');
+        window.modalCallback = callback;
+    }
+
+    function closeModal() {
+        document.getElementById('custom-modal').classList.remove('active');
+        if (window.modalCallback) {
+            window.modalCallback();
+            window.modalCallback = null;
+        }
+    }
+
+    function generateFallbackQuestions() {
+        let qList = [];
+        for (let i = 0; i < 50; i++) {
+            let a = Math.floor(Math.random() * 9) + 1;
+            let b = Math.floor(Math.random() * 9) + 1;
+            qList.push({ question: `${a} x ${b}`, answer: (a * b).toString() });
+        }
+        return qList;
+    }
+
+    async function validateAndStart() {
+        getAudioContext();
+        const nama = document.getElementById('input-nama').value.trim();
+        const jenis = document.getElementById('input-jenis').value;
+        const tokenInput = document.getElementById('input-token').value.trim();
+
+        if (!nama) return showCustomModal('Peringatan', 'Nama lengkap harus diisi!');
+        if (jenis === 'Sumatif' && tokenInput !== config.token) {
+            return showCustomModal('Peringatan', 'Token Sumatif tidak valid!');
+        }
+
+        studentData = {
+            absen: document.getElementById('input-absen').value,
+            nama: nama,
+            kelas: document.getElementById('input-kelas').value,
+            jenis: jenis
+        };
+
+        const btn = document.getElementById('btn-start-game');
+        btn.disabled = true;
+        btn.textContent = "Memuat Soal...";
+
+        if (!preloadedQuestions) {
+            await preloadDataInBg();
+        }
+
+        let rawQuestions = preloadedQuestions || generateFallbackQuestions();
+        const limit = Math.min(config.totalQuestions, rawQuestions.length);
+        questions = rawQuestions.sort(() => 0.5 - Math.random()).slice(0, limit);
+
+        btn.disabled = false;
+        btn.textContent = "Mulai Bermain";
+
+        startQuiz();
+    }
+
+    function startQuiz() {
+        currentQIndex = 0;
+        correctAnswersCount = 0;
+        score = 0;
+        currentLives = config.lives;
+        timeLeft = config.timeLimit;
+
+        document.getElementById('screen-auth').style.display = 'none';
+        document.getElementById('screen-game').style.display = 'block';
+
+        updateStats();
+        loadQuestion();
+
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            document.getElementById('disp-time').textContent = timeLeft;
+            if (timeLeft <= 0) {
+                endGame('Waktu Habis!', false);
+            }
+        }, 1000);
+    }
+
+    function updateStats() {
+        document.getElementById('disp-time').textContent = timeLeft;
+        document.getElementById('disp-score').textContent = score;
+        document.getElementById('disp-hearts').textContent = '❤️'.repeat(currentLives);
+    }
+
+    function loadQuestion() {
+        if (currentQIndex >= questions.length) {
+            endGame('Selamat! Soal Selesai.', true);
+            return;
+        }
+        document.getElementById('disp-question').textContent = questions[currentQIndex].question;
+        document.getElementById('disp-answer').textContent = '';
+    }
+
+    function pressNum(num) {
+        playAudio('click');
+        const disp = document.getElementById('disp-answer');
+        if (disp.textContent.length < 5) disp.textContent += num;
+    }
+
+    function pressClear() {
+        playAudio('click');
+        document.getElementById('disp-answer').textContent = '';
+    }
+
+    function pressSubmit() {
+        const userAns = document.getElementById('disp-answer').textContent;
+        if (!userAns) return;
+
+        const correctAns = questions[currentQIndex].answer;
+        if (userAns === correctAns) {
+            playAudio('correct');
+            correctAnswersCount++;
+            score = Math.round((correctAnswersCount / questions.length) * 100);
+            currentQIndex++; // Berlanjut ke soal berikutnya hanya jika benar
+            updateStats();
+            loadQuestion();
+        } else {
+            playAudio('wrong');
+            currentLives--;
+            document.getElementById('disp-answer').textContent = ''; // Kosongkan jawaban tanpa ganti soal
+            updateStats();
+            if (currentLives <= 0) {
+                endGame('Game Over! Nyawa Habis.', false);
+            }
+        }
+    }
+
+    function endGame(reason, isWin = false) {
+        clearInterval(timerInterval);
+        
+        if (isWin) {
+            playAudio('win');
+        } else {
+            playAudio('gameover');
+        }
+
+        const finalScore = score;
+        const timeRemaining = timeLeft > 0 ? timeLeft : 0;
+
+        if (WEB_APP_URL && WEB_APP_URL !== "ISI_URL_APPS_SCRIPT_ANDA_DI_SINI") {
+            const payload = {
+                action: 'submitScore',
+                jenis: studentData.jenis,
+                timestamp: new Date().toLocaleString('id-ID'),
+                absen: studentData.absen,
+                nama: studentData.nama,
+                kelas: studentData.kelas,
+                score: finalScore,
+                timeLeft: timeRemaining
+            };
+
+            fetch(WEB_APP_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                body: JSON.stringify(payload)
+            });
+        }
+
+        showCustomModal(
+            reason,
+            `Nama: ${studentData.nama}\nKelas: ${studentData.kelas} (Absen ${studentData.absen})\nSkor Akhir: ${finalScore} / 100\nSisa Waktu: ${timeRemaining}s`,
+            () => { location.reload(); }
+        );
+    }
+</script>
+</body>
+</html>
